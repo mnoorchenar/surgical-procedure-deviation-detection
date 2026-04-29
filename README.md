@@ -78,21 +78,35 @@ sdk: docker
 
 ## 🏗️ Architecture
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│           Surgical Procedure Deviation Detection                   │
-│                                                                    │
-│  ┌────────────┐    ┌─────────────────┐    ┌──────────────────┐  │
-│  │  Pre-op    │───▶│  Text Encoding  │───▶│  Task 1          │  │
-│  │  Features  │    │  (BERT / TF-IDF)│    │  Duration (MAE)  │  │
-│  └────────────┘    └────────┬────────┘    └──────────────────┘  │
-│                             │                                      │
-│                    ┌────────▼────────┐    ┌──────────────────┐   │
-│                    │  FAISS Index    │───▶│  Task 3          │   │
-│                    │  (RAG retrieval)│    │  Deviation (AUC) │   │
-│                    └─────────────────┘    └──────────────────┘   │
-└──────────────────────────────────────────────────────────────────┘
-```
+<div align="center">
+<svg width="680" height="215" viewBox="0 0 680 215" xmlns="http://www.w3.org/2000/svg">
+  <rect width="680" height="215" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="340" y="27" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#1e293b">Surgical Procedure Deviation Detection</text>
+  <rect x="20" y="42" width="130" height="55" rx="8" fill="#3b82f6"/>
+  <text x="85" y="66" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="white">Pre-op</text>
+  <text x="85" y="84" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#bfdbfe">Features</text>
+  <rect x="200" y="42" width="165" height="55" rx="8" fill="#4f46e5"/>
+  <text x="282" y="66" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="white">Text Encoding</text>
+  <text x="282" y="84" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#c7d2fe">BERT / TF-IDF</text>
+  <rect x="415" y="42" width="145" height="55" rx="8" fill="#0ea5e9"/>
+  <text x="487" y="66" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="white">Task 1</text>
+  <text x="487" y="84" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#bae6fd">Duration (MAE)</text>
+  <rect x="200" y="142" width="165" height="55" rx="8" fill="#4f46e5"/>
+  <text x="282" y="166" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="white">FAISS Index</text>
+  <text x="282" y="184" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#c7d2fe">RAG retrieval</text>
+  <rect x="415" y="142" width="145" height="55" rx="8" fill="#7c3aed"/>
+  <text x="487" y="166" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="white">Task 3</text>
+  <text x="487" y="184" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#ede9fe">Deviation (AUC)</text>
+  <line x1="150" y1="69" x2="192" y2="69" stroke="#64748b" stroke-width="1.5"/>
+  <polygon points="192,65 200,69 192,73" fill="#64748b"/>
+  <line x1="365" y1="69" x2="407" y2="69" stroke="#64748b" stroke-width="1.5"/>
+  <polygon points="407,65 415,69 407,73" fill="#64748b"/>
+  <line x1="282" y1="97" x2="282" y2="134" stroke="#64748b" stroke-width="1.5"/>
+  <polygon points="278,134 282,142 286,134" fill="#64748b"/>
+  <line x1="365" y1="169" x2="407" y2="169" stroke="#64748b" stroke-width="1.5"/>
+  <polygon points="407,165 415,169 407,173" fill="#64748b"/>
+</svg>
+</div>
 
 ---
 
