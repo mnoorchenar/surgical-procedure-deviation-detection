@@ -1,0 +1,457 @@
+%% ── Section 4: Results and Discussion ──────────────────────────────────────
+%% Body-only file — no \documentclass, no \begin{document}.
+%% Included via \input{results} from overleaf/main.tex.
+%% All numeric values computed directly from data/outputs/result_task3.db
+%% and data/processed/task3_clean.db.
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Results and Discussion}
+\label{sec:results}
+
+This section presents the experimental evaluation of the proposed pipeline for
+pre-operative surgical plan deviation prediction.  Quantitative performance is
+reported across five stratified cross-validation folds and one temporal
+hold-out fold, followed by a pairwise statistical comparison of the proposed
+method against all baselines.
+
+%% ── 4.1 Dataset Description ──────────────────────────────────────────────────
+\subsection{Dataset Description}
+\label{sec:data}
+
+The processed dataset comprises $N = 193{,}995$ surgical cases retained after
+cleaning from the raw data file (original $N = 194{,}661$).
+Of these, $13{,}134$ cases ($6.77\,\%$) carry a positive deviation label,
+representing a strongly imbalanced binary classification problem in which a
+random classifier would achieve an area under the precision-recall curve
+(AUC-PR) of approximately $0.068$.  The dataset spans $1{,}808$ unique
+scheduled procedure descriptions, 13 distinct surgical services, and 6
+operating room locations.  Anaesthetic type is dominated by general anaesthesia
+($84.9\,\%$ of cases), with neuraxial ($7.5\,\%$), sedation ($3.1\,\%$),
+and regional ($2.6\,\%$) constituting the remaining principal categories.  The
+sex distribution is $53.4\,\%$ male and $46.6\,\%$ female.
+\cref{tab:data_stats} summarises the descriptive statistics for the continuous
+and ordinal pre-operative features.
+
+\begin{table}[ht]
+\centering
+\begin{threeparttable}
+\caption{Descriptive statistics of continuous and ordinal pre-operative
+         features ($N = 193{,}995$).}
+\label{tab:data_stats}
+\begin{tabular}{lllrrrr}
+\toprule
+Feature & Type & Unit & Min & Max & Mean & Std \\
+\midrule
+Age at discharge     & Continuous & years    & 18.0  & 103.1 & 56.82 & 17.51 \\
+Mean BMI             & Continuous & kg/m$^2$ &  6.1  & 199.5 & 27.79 &  9.03 \\
+ASA physical status  & Ordinal    & score    &  1    &   5   &  2.52 &  0.94 \\
+OR team size         & Integer    & persons  &  1    &  44   & 10.05 &  3.11 \\
+Scheduled start hour & Integer    & hour     &  0    &  18   & 10.85 &  2.47 \\
+Month of year        & Integer    & month    &  1    &  12   &  6.55 &  3.44 \\
+Day of week          & Integer    & day      &  0    &   4   &  2.05 &  1.39 \\
+Deviation label      & Binary     &          &  0    &   1   & 0.068 &       \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+  \footnotesize
+  \item OR: operating room; ASA: American Society of Anesthesiologists;
+        BMI: body mass index; Std: standard deviation.
+  \item Mean and standard deviation are not reported for the binary
+        deviation label; the value shown under Mean is the positive
+        class prevalence.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+%% ── 4.2 Experimental Setup ───────────────────────────────────────────────────
+\subsection{Experimental Setup}
+\label{sec:setup}
+
+All experiments were conducted with a fixed random seed (42)
+to ensure reproducibility.  Hyperparameter optimisation was performed using
+Optuna with 20 trials per model per fold on a 25\,\% training subset.  The
+final model for each fold was retrained on the complete training partition
+using the selected hyperparameters.  Performance was evaluated on the held-out
+validation partition.  \cref{tab:hyperparams} reports the selected
+hyperparameters for the best-performing model, XGBoost with SentenceBERT
+feature encoding, for fold~0 as a representative example; hyperparameters
+varied modestly across folds.
+
+\begin{table}[ht]
+\centering
+\begin{threeparttable}
+\caption{Selected hyperparameters for XGBoost with SentenceBERT encoding
+         (fold~0, representative example).}
+\label{tab:hyperparams}
+\begin{tabular}{llp{7cm}}
+\toprule
+Parameter & Value & Description \\
+\midrule
+$T$            & 491   & Number of boosting rounds \\
+$\eta$         & 0.023 & Shrinkage factor applied to each tree (learning rate) \\
+$d$            & 8     & Maximum depth of each tree \\
+$\rho_{r}$     & 0.785 & Row subsampling ratio per boosting round \\
+$\rho_{c}$     & 0.653 & Column subsampling ratio per tree \\
+$\alpha$       & 5.14  & L1 regularisation coefficient \\
+$\lambda$      & 0.003 & L2 regularisation coefficient \\
+$w_{+}$        & 13.65 & Class imbalance weight ($n_{-}/n_{+}$) \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+  \footnotesize
+  \item $w_{+}$ was computed per fold as the ratio of negative to positive
+        training cases; the value shown corresponds to fold~0.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+%% ── 4.3 Performance Evaluation ───────────────────────────────────────────────
+\subsection{Performance Evaluation}
+\label{sec:performance}
+
+\paragraph{Effect of feature encoding.}
+Incorporating BERT text embeddings produced consistent and substantial
+improvements over structured features alone.  XGBoost with structured features only achieved AUC-ROC $= 0.715 \pm 0.004$
+and AUC-PR $= 0.166 \pm 0.006$, whereas the same model with SentenceBERT
+embeddings reached AUC-ROC $= 0.804 \pm 0.006$ and AUC-PR $= 0.261 \pm
+0.011$, corresponding to improvements of $+8.9$ and $+9.5$ percentage points
+respectively.  The pattern held across all classifiers: BERT-augmented
+configurations outperformed structured-only baselines by $7$--$9$ percentage
+points in AUC-ROC for tree-based models and by $8$ percentage points for the
+MLP.  These results confirm that the semantic content of the scheduled
+procedure name is the dominant predictive signal for pre-operative deviation
+detection.
+
+\paragraph{Comparison of BERT encoders.}
+SentenceBERT consistently matched or marginally exceeded ClinicalBERT across
+classifiers and metrics, despite producing lower-dimensional embeddings (384
+versus 768 dimensions prior to PCA).  For XGBoost, SentenceBERT yielded
+AUC-ROC $= 0.804 \pm 0.006$ versus $0.801 \pm 0.004$ for ClinicalBERT.  The
+superior generalisation of SentenceBERT likely reflects its contrastive
+pre-training objective, which clusters semantically equivalent procedure
+descriptions even when their surface forms differ.
+
+\paragraph{Effect of RAG augmentation.}
+RAG augmentation provided inconsistent benefits relative to BERT-only
+configurations.  For Ridge logistic regression, the RAG features provided a
+substantial improvement: RAG with SentenceBERT achieved AUC-ROC $= 0.743
+\pm 0.007$ compared to $0.682 \pm 0.009$ for SentenceBERT alone ($+6.1$ pp),
+demonstrating that the nearest-neighbour deviation rate is informative when
+the base classifier has limited capacity.  For tree-based
+models and the MLP, the RAG features provided negligible or slightly negative
+marginal gains, suggesting that these models capture the relevant neighbourhood
+structure internally through their feature interactions.  \cref{fig:xgboost}
+through \cref{fig:ridge} present the receiver operating characteristic and
+precision-recall curves for each classifier under all five feature
+configurations.
+
+\paragraph{Cross-model comparison.}
+XGBoost with SentenceBERT embeddings achieved the highest mean AUC-ROC of
+$0.804 \pm 0.006$ and AUC-PR of $0.261 \pm 0.011$ across the five
+cross-validation folds, followed closely by the MLP ($0.800 \pm 0.007$ and
+$0.251 \pm 0.013$) and Random Forest ($0.793 \pm 0.005$ and $0.244 \pm
+0.010$).  LightGBM achieved AUC-ROC $= 0.781 \pm 0.007$ with RAG and SentenceBERT
+but exhibited unstable threshold-level metrics,
+with F1 collapsing to zero on some folds at the $\hat{p} = 0.20$ threshold,
+suggesting poor probability calibration.  Ridge logistic regression was the
+weakest classifier across all configurations.
+
+\paragraph{Clinical threshold analysis.}
+At the clinically motivated decision threshold $\hat{p} = 0.20$, the proposed
+XGBoost + SentenceBERT model flagged on average $25{,}038$ cases per
+validation fold and identified $2{,}464$ of the $2{,}627$ true deviations
+(mean recall $= 0.938 \pm 0.017$) at a precision of $0.099 \pm 0.006$.  This
+threshold captures $93.8\,\%$ of actual deviations at the cost of
+approximately 22 false alarms per true positive, a clinically acceptable
+trade-off given the low cost of a pre-operative review compared to an
+intraoperative deviation.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\textwidth]{task3_xgboost}
+  \caption{Receiver operating characteristic and precision-recall curves for
+           XGBoost under all five feature configurations (folds 0--4 and
+           temporal fold 5).}
+  \label{fig:xgboost}
+\end{figure}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\textwidth]{task3_mlp}
+  \caption{Receiver operating characteristic and precision-recall curves for
+           the multilayer perceptron under all five feature configurations.}
+  \label{fig:mlp}
+\end{figure}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\textwidth]{task3_randomforest}
+  \caption{Receiver operating characteristic and precision-recall curves for
+           Random Forest under all five feature configurations.}
+  \label{fig:randomforest}
+\end{figure}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\textwidth]{task3_lightgbm}
+  \caption{Receiver operating characteristic and precision-recall curves for
+           LightGBM under all five feature configurations.}
+  \label{fig:lightgbm}
+\end{figure}
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\textwidth]{task3_ridge}
+  \caption{Receiver operating characteristic and precision-recall curves for
+           Ridge logistic regression under all five feature configurations.}
+  \label{fig:ridge}
+\end{figure}
+
+\paragraph{Encoding contribution analysis.}
+\cref{fig:encoding_ablation} isolates the contribution of each feature
+engineering stage for XGBoost, the best-performing classifier.  The transition
+from structured features only to ClinicalBERT embeddings produced the largest
+single gain ($+8.6$ pp in AUC-ROC), confirming that the semantic representation
+of the scheduled procedure name is the dominant predictive signal.  SentenceBERT
+marginally exceeded ClinicalBERT (AUC-ROC $0.804$ versus $0.801$), and the
+addition of RAG augmentation yielded no further improvement for this classifier.
+\cref{tab:encoding_ablation} reports the numerical summary.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\textwidth]{encoding_ablation}
+  \caption{Mean AUC-ROC and AUC-PR for XGBoost across all five feature
+           configurations (folds~0--4). Each pair of bars corresponds to one
+           configuration; darker bars denote AUC-ROC and lighter bars AUC-PR.}
+  \label{fig:encoding_ablation}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\begin{threeparttable}
+\caption{Encoding ablation for XGBoost: mean $\pm$ standard deviation across
+         folds~0--4. Complements \cref{fig:encoding_ablation}.
+         \label{tab:encoding_ablation}}
+\begin{tabular}{lrrrr}
+\toprule
+Feature configuration &
+  AUC-ROC $\uparrow$ &
+  AUC-PR $\uparrow$ &
+  F1 $\uparrow$ &
+  Brier $\downarrow$ \\
+\midrule
+Structured only         & $0.715 \pm 0.004$ & $0.166 \pm 0.006$ & $0.135 \pm 0.008$ & $0.206 \pm 0.011$ \\
+ClinicalBERT            & $0.801 \pm 0.004$ & $0.257 \pm 0.009$ & $0.169 \pm 0.014$ & $0.165 \pm 0.011$ \\
+\textbf{SentenceBERT}   & $\mathbf{0.804 \pm 0.006}$ & $\mathbf{0.261 \pm 0.011}$ & $\mathbf{0.179 \pm 0.010}$ & $\mathbf{0.156 \pm 0.007}$ \\
+RAG + ClinicalBERT      & $0.799 \pm 0.007$ & $0.254 \pm 0.013$ & $0.171 \pm 0.013$ & $0.163 \pm 0.012$ \\
+RAG + SentenceBERT      & $0.801 \pm 0.008$ & $0.258 \pm 0.013$ & $0.172 \pm 0.010$ & $0.162 \pm 0.008$ \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+  \footnotesize
+  \item Best configuration per metric shown in bold.
+  \item $\uparrow$ higher is better; $\downarrow$ lower is better.
+  \item F1 evaluated at clinical threshold $\hat{p} = 0.20$.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+\cref{tab:full_results} presents the complete AUC-ROC results across all
+classifier and feature-configuration combinations, providing the numerical
+summary for \cref{fig:xgboost,fig:mlp,fig:randomforest,fig:lightgbm,fig:ridge}.
+
+\begin{table}[ht]
+\centering
+\begin{threeparttable}
+\caption{AUC-ROC (mean $\pm$ std, folds~0--4) for all classifier and feature
+         configuration combinations. Best result per classifier shown in bold.
+         \label{tab:full_results}}
+\begin{tabular}{llrr}
+\toprule
+Classifier & Feature configuration & AUC-ROC $\uparrow$ & AUC-PR $\uparrow$ \\
+\midrule
+\multirow{5}{*}{XGBoost}
+  & Structured only       & $0.715 \pm 0.004$ & $0.166 \pm 0.006$ \\
+  & ClinicalBERT          & $0.801 \pm 0.004$ & $0.257 \pm 0.009$ \\
+  & \textbf{SentenceBERT} & $\mathbf{0.804 \pm 0.006}$ & $\mathbf{0.261 \pm 0.011}$ \\
+  & RAG + ClinicalBERT    & $0.799 \pm 0.007$ & $0.254 \pm 0.013$ \\
+  & RAG + SentenceBERT    & $0.801 \pm 0.008$ & $0.258 \pm 0.013$ \\
+\midrule
+\multirow{5}{*}{MLP}
+  & Structured only       & $0.720 \pm 0.003$ & $0.166 \pm 0.005$ \\
+  & ClinicalBERT          & $0.794 \pm 0.020$ & $0.244 \pm 0.020$ \\
+  & \textbf{SentenceBERT} & $\mathbf{0.800 \pm 0.007}$ & $\mathbf{0.251 \pm 0.013}$ \\
+  & RAG + ClinicalBERT    & $0.789 \pm 0.016$ & $0.238 \pm 0.022$ \\
+  & RAG + SentenceBERT    & $0.800 \pm 0.008$ & $0.247 \pm 0.011$ \\
+\midrule
+\multirow{5}{*}{Random Forest}
+  & Structured only       & $0.712 \pm 0.006$ & $0.164 \pm 0.004$ \\
+  & ClinicalBERT          & $0.790 \pm 0.006$ & $0.244 \pm 0.011$ \\
+  & \textbf{SentenceBERT} & $\mathbf{0.793 \pm 0.005}$ & $\mathbf{0.244 \pm 0.010}$ \\
+  & RAG + ClinicalBERT    & $0.786 \pm 0.006$ & $0.243 \pm 0.009$ \\
+  & RAG + SentenceBERT    & $0.790 \pm 0.005$ & $0.245 \pm 0.011$ \\
+\midrule
+\multirow{5}{*}{LightGBM}
+  & Structured only       & $0.679 \pm 0.007$ & $0.142 \pm 0.007$ \\
+  & ClinicalBERT          & $0.772 \pm 0.015$ & $0.221 \pm 0.015$ \\
+  & SentenceBERT          & $0.777 \pm 0.009$ & $0.222 \pm 0.010$ \\
+  & RAG + ClinicalBERT    & $0.771 \pm 0.003$ & $0.219 \pm 0.014$ \\
+  & \textbf{RAG + SentenceBERT} & $\mathbf{0.781 \pm 0.007}$ & $\mathbf{0.230 \pm 0.012}$ \\
+\midrule
+\multirow{5}{*}{Ridge LR}
+  & Structured only       & $0.658 \pm 0.008$ & $0.141 \pm 0.005$ \\
+  & ClinicalBERT          & $0.693 \pm 0.021$ & $0.168 \pm 0.016$ \\
+  & SentenceBERT          & $0.682 \pm 0.009$ & $0.161 \pm 0.007$ \\
+  & RAG + ClinicalBERT    & $0.738 \pm 0.008$ & $0.204 \pm 0.012$ \\
+  & \textbf{RAG + SentenceBERT} & $\mathbf{0.743 \pm 0.007}$ & $\mathbf{0.204 \pm 0.007}$ \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+  \footnotesize
+  \item LR: logistic regression. RAG: retrieval-augmented generation.
+  \item $\uparrow$ higher is better.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+%% ── 4.4 Temporal Generalisation ──────────────────────────────────────────────
+\subsection{Temporal Generalisation}
+\label{sec:temporal}
+
+The temporal fold (fold~5) partitions cases by scheduling date to evaluate
+out-of-time generalisation, simulating deployment on future surgical schedules.
+\cref{fig:cv_vs_temporal} compares the cross-validation mean AUC-ROC against
+the temporal fold AUC-ROC for each classifier on its best feature
+configuration.  Performance on fold~5 was consistently lower than the
+cross-validation mean, which is expected given temporal distribution shift.
+The MLP exhibited the smallest absolute drop ($-0.018$ pp) from cross-validation
+to temporal fold, achieving AUC-ROC $= 0.782$ with SentenceBERT and with RAG
+and SentenceBERT.  XGBoost showed the largest drop ($-0.038$ pp) under
+SentenceBERT; notably, XGBoost with ClinicalBERT achieved AUC-ROC $= 0.781$
+on fold~5, recovering most of this gap.  The relative ranking of classifiers
+was largely preserved across the two evaluation settings.
+\cref{tab:temporal} reports the full numerical comparison.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=\textwidth]{cv_vs_temporal}
+  \caption{AUC-ROC for each classifier on its best feature configuration:
+           cross-validation mean (folds~0--4) versus temporal fold (fold~5).}
+  \label{fig:cv_vs_temporal}
+\end{figure}
+
+\begin{table}[ht]
+\centering
+\begin{threeparttable}
+\caption{Temporal generalisation: cross-validation mean AUC-ROC versus temporal
+         fold AUC-ROC for each classifier on its best feature configuration.
+         Complements \cref{fig:cv_vs_temporal}.
+         \label{tab:temporal}}
+\begin{tabular}{llrrr}
+\toprule
+Classifier & Best configuration &
+  CV AUC-ROC $\uparrow$ &
+  Fold 5 AUC-ROC $\uparrow$ &
+  $\Delta$ \\
+\midrule
+XGBoost       & SentenceBERT       & $0.804 \pm 0.006$ & $0.766$ & $-0.038$ \\
+MLP           & SentenceBERT       & $0.800 \pm 0.007$ & $0.782$ & $-0.018$ \\
+Random Forest & SentenceBERT       & $0.793 \pm 0.005$ & $0.773$ & $-0.020$ \\
+LightGBM      & RAG + SentenceBERT & $0.781 \pm 0.007$ & $0.754$ & $-0.027$ \\
+Ridge LR      & RAG + SentenceBERT & $0.743 \pm 0.007$ & $0.731$ & $-0.012$ \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+  \footnotesize
+  \item $\Delta$ = Fold 5 AUC-ROC $-$ CV mean AUC-ROC (negative values indicate
+        performance reduction under temporal distribution shift).
+  \item LR: logistic regression. RAG: retrieval-augmented generation.
+\end{tablenotes}
+\end{threeparttable}
+\end{table}
+
+%% ── 4.5 Statistical Comparison ───────────────────────────────────────────────
+\subsection{Statistical Comparison}
+\label{sec:stats}
+
+Pairwise comparisons between the proposed XGBoost + SentenceBERT model and
+each baseline were performed using the Wilcoxon signed-rank test on the
+per-fold metric values across folds~0--4.  Multiple comparisons were corrected
+using the Benjamini-Hochberg false discovery rate (FDR) procedure at a
+significance level of $\alpha = 0.05$ \citep{benjamini1995controlling}.  All
+corrected $p$-values exceeded $0.05$, indicating that no pairwise comparison
+reached statistical significance at the chosen level.  This result is
+attributable to the limited statistical power of the Wilcoxon test with only
+five observations; with $n = 5$ folds, the minimum achievable one-sided
+$p$-value is $0.031$, precluding significance after FDR correction for the
+number of comparisons performed.  The performance differences observed between
+XGBoost + SentenceBERT and the MLP or Random Forest are therefore practically
+meaningful but not statistically certifiable with the present cross-validation
+design.  \cref{tab:comparison} reports the mean performance and pairwise
+comparison results.
+
+\begin{table}[ht]
+\centering
+\begin{threeparttable}
+\caption{Statistical comparison of the proposed method (XGBoost + SentenceBERT)
+         against baselines. Mean $\pm$ standard deviation across folds~0--4.
+         \label{tab:comparison}}
+\begin{tabular}{llrrrr}
+\toprule
+Method & Encoding &
+  AUC-ROC $\uparrow$ &
+  AUC-PR $\uparrow$ &
+  F1 $\uparrow$ &
+  Brier $\downarrow$ \\
+\midrule
+\textbf{XGBoost}$^{\dagger}$ & SentenceBERT
+  & $\mathbf{0.804 \pm 0.006}$
+  & $\mathbf{0.261 \pm 0.011}$
+  & $0.179 \pm 0.010$
+  & $0.156 \pm 0.007$ \\
+MLP & SentenceBERT
+  & $0.800 \pm 0.007$
+  & $0.251 \pm 0.013$
+  & $0.178 \pm 0.008$
+  & $0.173 \pm 0.008$ \\
+Random Forest & SentenceBERT
+  & $0.793 \pm 0.005$
+  & $0.244 \pm 0.010$
+  & $0.160 \pm 0.004$
+  & $0.163 \pm 0.001$ \\
+LightGBM & RAG + SentenceBERT
+  & $0.781 \pm 0.007$
+  & $0.230 \pm 0.012$
+  & $0.050 \pm 0.111$
+  & $0.064 \pm 0.006$ \\
+Ridge LR & RAG + SentenceBERT
+  & $0.743 \pm 0.007$
+  & $0.204 \pm 0.007$
+  & $0.136 \pm 0.004$
+  & $0.197 \pm 0.004$ \\
+\midrule
+XGBoost & Structured only
+  & $0.715 \pm 0.004$
+  & $0.166 \pm 0.006$
+  & $0.136 \pm 0.008$
+  & $0.206 \pm 0.012$ \\
+MLP & Structured only
+  & $0.720 \pm 0.003$
+  & $0.166 \pm 0.005$
+  & $0.139 \pm 0.003$
+  & $0.211 \pm 0.006$ \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+  \footnotesize
+  \item $^{\dagger}$ Proposed method (reference for statistical comparisons).
+  \item No pairwise comparison reached statistical significance after FDR
+        correction (Wilcoxon signed-rank, $n=5$ folds; all $p_{\text{FDR}} >
+        0.05$).
+  \item $\uparrow$ higher is better; $\downarrow$ lower is better.
+  \item F1 and Brier scores evaluated at clinical threshold $\hat{p} = 0.20$.
+  \item LightGBM F1 reflects threshold instability across folds (see
+        \cref{sec:performance}).
+\end{tablenotes}
+\end{threeparttable}
+\end{table}

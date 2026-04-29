@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Surgical Plan Deviation Detection — Pipeline</title>
+    <style>
+        body { margin: 0; padding: 40px; background: #000;
+               display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        svg { max-width: 100%; height: auto; }
+        @page { size: A4 portrait; margin: 8mm; }
+        @media print {
+            body { padding: 0; min-height: 0; background: transparent;
+                   -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            svg { width: 100%; height: auto; }
+        }
+    </style>
+</head>
+<body>
+<!--
+  Dark-theme card-style flowchart. See flowchart/flowchart_rules.md.
+  ViewBox: 0 0 1000 1195
+  Phase y-starts:   123 / 326 / 579 / 822
+  Box y-starts:     188 / 391 / 644 / 887
+  Box heights:       95 / 140 / 130 / 130
+  2-col box width: 430  at x=50 / x=520
+  3-col box width: 280  at x=50 / x=360 / x=670
+  Node labels match \subsection titles in overleaf/03_methodology.tex exactly.
+-->
+<svg viewBox="0 0 1000 1195" xmlns="http://www.w3.org/2000/svg"
+     style="font-family:'Segoe UI',Arial,sans-serif;">
+<defs>
+    <!-- ── Backgrounds ──────────────────────────────────────────────────── -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#070b14"/>
+        <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <!-- subtle dot-grid pattern -->
+    <pattern id="dots" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse">
+        <circle cx="14" cy="14" r="0.9" fill="#1e293b"/>
+    </pattern>
+
+    <!-- ── Pill gradients ───────────────────────────────────────────────── -->
+    <linearGradient id="pillTop" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stop-color="#312e81"/>
+        <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="pillBot" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stop-color="#1e1b4b"/>
+        <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+
+    <!-- ── Phase header gradients (horizontal) ─────────────────────────── -->
+    <linearGradient id="hBlue" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stop-color="#1e3a8a"/>
+        <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="hEmerald" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stop-color="#064e3b"/>
+        <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="hOrange" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stop-color="#7c2d12"/>
+        <stop offset="100%" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="hPurple" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%"   stop-color="#4c1d95"/>
+        <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+
+    <!-- ── Filters ──────────────────────────────────────────────────────── -->
+    <filter id="cardShadow" x="-4%" y="-4%" width="112%" height="118%">
+        <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#000" flood-opacity="0.65"/>
+    </filter>
+    <filter id="pillShadow" x="-4%" y="-8%" width="112%" height="128%">
+        <feDropShadow dx="0" dy="5" stdDeviation="10" flood-color="#000" flood-opacity="0.75"/>
+    </filter>
+    <filter id="connGlow" x="-20%" y="-40%" width="140%" height="180%">
+        <feGaussianBlur stdDeviation="3" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- ── Arrow markers ────────────────────────────────────────────────── -->
+    <!-- vertical inter-phase connector -->
+    <marker id="mConn" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+        <path d="M0,1 L8,4.5 L0,8 L2,4.5 Z" fill="#818cf8"/>
+    </marker>
+    <!-- horizontal sub-box arrow — emerald -->
+    <marker id="mGreen" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+        <path d="M0,1 L8,4.5 L0,8 L2,4.5 Z" fill="#34d399"/>
+    </marker>
+    <!-- horizontal sub-box arrow — orange -->
+    <marker id="mOrange" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+        <path d="M0,1 L8,4.5 L0,8 L2,4.5 Z" fill="#fb923c"/>
+    </marker>
+    <!-- horizontal sub-box arrow — purple -->
+    <marker id="mPurple" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+        <path d="M0,1 L8,4.5 L0,8 L2,4.5 Z" fill="#c084fc"/>
+    </marker>
+</defs>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     BACKGROUND
+══════════════════════════════════════════════════════════════════════════ -->
+<rect x="0" y="0" width="1000" height="1195" fill="url(#bgGrad)"/>
+<rect x="0" y="0" width="1000" height="1195" fill="url(#dots)" opacity="0.55"/>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     TOP PILL
+══════════════════════════════════════════════════════════════════════════ -->
+<rect x="210" y="18" width="580" height="78" rx="39" fill="url(#pillTop)" filter="url(#pillShadow)"/>
+<text x="500" y="55" font-size="24" font-weight="600" text-anchor="middle" fill="white">Raw Surgical Records</text>
+<text x="500" y="82" font-size="17" text-anchor="middle" fill="#93c5fd">N = 194,661 pre-operative cases</text>
+
+<!-- Vertical connector  top-pill → Phase 1 -->
+<line x1="500" y1="96" x2="500" y2="118"
+      stroke="#818cf8" stroke-width="2.5" marker-end="url(#mConn)" filter="url(#connGlow)"/>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     PHASE 1 — DATA     y=123  header=55  box=95  total=175  bottom=298
+     Subsection 3.1: Data Cleaning and Label Derivation
+══════════════════════════════════════════════════════════════════════════ -->
+<!-- Card background -->
+<rect x="28" y="123" width="944" height="175" rx="18"
+      fill="#111827" stroke="#1e3a8a" stroke-width="1.2" filter="url(#cardShadow)"/>
+<!-- Gradient header (rounded top, straight bottom) -->
+<path d="M46,123 Q28,123 28,141 L28,178 L972,178 L972,141 Q972,123 954,123 Z"
+      fill="url(#hBlue)"/>
+<!-- Phase badge -->
+<circle cx="64" cy="150" r="17" fill="rgba(255,255,255,0.15)" stroke="#93c5fd" stroke-width="1.5"/>
+<text x="64" y="156" font-size="14" font-weight="700" text-anchor="middle" fill="white">01</text>
+<!-- Phase label -->
+<text x="92" y="147" font-size="12" font-weight="700" fill="#93c5fd" letter-spacing="2">PHASE 1</text>
+<text x="92" y="163" font-size="19" font-weight="700" fill="white">Data</text>
+
+<!-- Sub-box: Data Cleaning and Label Derivation -->
+<rect x="48" y="187" width="904" height="95" rx="11" fill="#0d1117"/>
+<rect x="48" y="187" width="5"   height="95" rx="2.5" fill="#60a5fa"/>
+<text x="70" y="217" font-size="18" font-weight="600" fill="white"
+      text-anchor="start">Data Cleaning and Label Derivation</text>
+<text x="70" y="242" font-size="15" fill="#94a3b8" text-anchor="start">y = 𝟙[performed ≠ scheduled procedure]  ·  all intraoperative fields excluded from feature matrices</text>
+<text x="70" y="265" font-size="14" fill="#64748b" text-anchor="start">N = 193,995 cases retained  ·  13,134 positives (6.77%)  ·  strongly imbalanced binary classification</text>
+
+<!-- Connector Phase 1 → Phase 2 -->
+<line x1="500" y1="298" x2="500" y2="321"
+      stroke="#818cf8" stroke-width="2.5" marker-end="url(#mConn)" filter="url(#connGlow)"/>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     PHASE 2 — FEATURE ENGINEERING   y=326  header=55  boxes=140  total=225  bottom=551
+     Subsections 3.2 / 3.3 / 3.4
+══════════════════════════════════════════════════════════════════════════ -->
+<rect x="28" y="326" width="944" height="225" rx="18"
+      fill="#111827" stroke="#065f46" stroke-width="1.2" filter="url(#cardShadow)"/>
+<path d="M46,326 Q28,326 28,344 L28,381 L972,381 L972,344 Q972,326 954,326 Z"
+      fill="url(#hEmerald)"/>
+<circle cx="64" cy="353" r="17" fill="rgba(255,255,255,0.15)" stroke="#6ee7b7" stroke-width="1.5"/>
+<text x="64" y="359" font-size="14" font-weight="700" text-anchor="middle" fill="white">02</text>
+<text x="92" y="350" font-size="12" font-weight="700" fill="#6ee7b7" letter-spacing="2">PHASE 2</text>
+<text x="92" y="366" font-size="19" font-weight="700" fill="white">Feature Engineering</text>
+
+<!-- ── P2 Box 1: Structured Feature Engineering ─── x=48 w=280 -->
+<rect x="48"  y="391" width="280" height="140" rx="11" fill="#0d1117"/>
+<rect x="48"  y="391" width="5"   height="140" rx="2.5" fill="#34d399"/>
+<text x="68" y="424" font-size="16" font-weight="700" fill="white"  text-anchor="start">Structured Feature</text>
+<text x="68" y="444" font-size="16" font-weight="700" fill="white"  text-anchor="start">Engineering</text>
+<text x="68" y="468" font-size="13" fill="#94a3b8" text-anchor="start">age · sex · BMI · ASA score</text>
+<text x="68" y="488" font-size="13" fill="#64748b" text-anchor="start">scheduling · temporal (55–56 feat.)</text>
+<text x="68" y="508" font-size="12" fill="#4b5563" text-anchor="start">fold-wise median imputation</text>
+
+<!-- arrow P2 box1→box2 -->
+<line x1="331" y1="461" x2="357" y2="461"
+      stroke="#34d399" stroke-width="2" marker-end="url(#mGreen)"/>
+
+<!-- ── P2 Box 2: BERT Text Embeddings ─── x=360 w=280 -->
+<rect x="360" y="391" width="280" height="140" rx="11" fill="#0d1117"/>
+<rect x="360" y="391" width="5"   height="140" rx="2.5" fill="#34d399"/>
+<text x="380" y="424" font-size="16" font-weight="700" fill="white"  text-anchor="start">BERT Text</text>
+<text x="380" y="444" font-size="16" font-weight="700" fill="white"  text-anchor="start">Embeddings</text>
+<text x="380" y="468" font-size="13" fill="#94a3b8" text-anchor="start">ClinicalBERT (768-d)</text>
+<text x="380" y="488" font-size="13" fill="#94a3b8" text-anchor="start">SentenceBERT (384-d)</text>
+<text x="380" y="508" font-size="12" fill="#64748b" text-anchor="start">fold-wise PCA → 128 components</text>
+
+<!-- arrow P2 box2→box3 -->
+<line x1="643" y1="461" x2="669" y2="461"
+      stroke="#34d399" stroke-width="2" marker-end="url(#mGreen)"/>
+
+<!-- ── P2 Box 3: ICD-10 Chapter Encoding ─── x=672 w=280 -->
+<rect x="672" y="391" width="280" height="140" rx="11" fill="#0d1117"/>
+<rect x="672" y="391" width="5"   height="140" rx="2.5" fill="#34d399"/>
+<text x="692" y="424" font-size="16" font-weight="700" fill="white"  text-anchor="start">ICD-10 Chapter</text>
+<text x="692" y="444" font-size="16" font-weight="700" fill="white"  text-anchor="start">Encoding</text>
+<text x="692" y="468" font-size="13" fill="#94a3b8" text-anchor="start">diagnosis code → chapter [0, 22]</text>
+<text x="692" y="488" font-size="12" fill="#64748b" text-anchor="start">letter-to-chapter ICD-10 mapping</text>
+<text x="692" y="508" font-size="12" fill="#4b5563" text-anchor="start">avoids high-cardinality one-hot</text>
+
+<!-- Connector Phase 2 → Phase 3 -->
+<line x1="500" y1="551" x2="500" y2="574"
+      stroke="#818cf8" stroke-width="2.5" marker-end="url(#mConn)" filter="url(#connGlow)"/>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     PHASE 3 — RETRIEVAL AUGMENTATION   y=579  header=55  boxes=130  total=215  bottom=794
+     Subsections 3.5 / 3.6
+══════════════════════════════════════════════════════════════════════════ -->
+<rect x="28" y="579" width="944" height="215" rx="18"
+      fill="#111827" stroke="#7c2d12" stroke-width="1.2" filter="url(#cardShadow)"/>
+<path d="M46,579 Q28,579 28,597 L28,634 L972,634 L972,597 Q972,579 954,579 Z"
+      fill="url(#hOrange)"/>
+<circle cx="64" cy="606" r="17" fill="rgba(255,255,255,0.15)" stroke="#fdba74" stroke-width="1.5"/>
+<text x="64" y="612" font-size="14" font-weight="700" text-anchor="middle" fill="white">03</text>
+<text x="92" y="603" font-size="12" font-weight="700" fill="#fdba74" letter-spacing="2">PHASE 3</text>
+<text x="92" y="619" font-size="19" font-weight="700" fill="white">Retrieval Augmentation</text>
+
+<!-- ── P3 Box 1: RAG Augmentation ─── x=48 w=430 -->
+<rect x="48"  y="644" width="430" height="130" rx="11" fill="#0d1117"/>
+<rect x="48"  y="644" width="5"   height="130" rx="2.5" fill="#fb923c"/>
+<text x="68"  y="675" font-size="18" font-weight="600" fill="white" text-anchor="start">RAG Augmentation</text>
+<text x="68"  y="700" font-size="14" fill="#94a3b8" text-anchor="start">FAISS inner-product index over training-fold BERT embeddings</text>
+<text x="68"  y="722" font-size="14" fill="#94a3b8" text-anchor="start">k = 5 nearest neighbours  ·  φnn: mean deviation rate</text>
+<text x="68"  y="744" font-size="13" fill="#64748b" text-anchor="start">φsvc: surgical service historical deviation rate</text>
+
+<!-- arrow P3 box1→box2 -->
+<line x1="481" y1="709" x2="517" y2="709"
+      stroke="#fb923c" stroke-width="2" marker-end="url(#mOrange)"/>
+
+<!-- ── P3 Box 2: Fold-wise Encoding and Scaling ─── x=520 w=430 -->
+<rect x="520" y="644" width="430" height="130" rx="11" fill="#0d1117"/>
+<rect x="520" y="644" width="5"   height="130" rx="2.5" fill="#fb923c"/>
+<text x="540" y="675" font-size="18" font-weight="600" fill="white" text-anchor="start">Fold-wise Encoding and Scaling</text>
+<text x="540" y="700" font-size="14" fill="#94a3b8" text-anchor="start">5 stratified CV folds + 1 temporal fold (out-of-time)</text>
+<text x="540" y="722" font-size="14" fill="#94a3b8" text-anchor="start">PCA · FAISS · imputation fitted on training partition only</text>
+<text x="540" y="744" font-size="13" fill="#64748b" text-anchor="start">min-max normalisation · no validation leakage</text>
+
+<!-- Connector Phase 3 → Phase 4 -->
+<line x1="500" y1="794" x2="500" y2="817"
+      stroke="#818cf8" stroke-width="2.5" marker-end="url(#mConn)" filter="url(#connGlow)"/>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     PHASE 4 — MODELLING AND EVALUATION   y=822  header=55  boxes=130  total=215  bottom=1037
+     Subsections 3.7 / 3.8
+══════════════════════════════════════════════════════════════════════════ -->
+<rect x="28" y="822" width="944" height="215" rx="18"
+      fill="#111827" stroke="#4c1d95" stroke-width="1.2" filter="url(#cardShadow)"/>
+<path d="M46,822 Q28,822 28,840 L28,877 L972,877 L972,840 Q972,822 954,822 Z"
+      fill="url(#hPurple)"/>
+<circle cx="64" cy="849" r="17" fill="rgba(255,255,255,0.15)" stroke="#d8b4fe" stroke-width="1.5"/>
+<text x="64" y="855" font-size="14" font-weight="700" text-anchor="middle" fill="white">04</text>
+<text x="92" y="846" font-size="12" font-weight="700" fill="#d8b4fe" letter-spacing="2">PHASE 4</text>
+<text x="92" y="862" font-size="19" font-weight="700" fill="white">Modelling and Evaluation</text>
+
+<!-- ── P4 Box 1: Model Training and Hyperparameter Optimisation ─── x=48 w=430 -->
+<rect x="48"  y="887" width="430" height="130" rx="11" fill="#0d1117"/>
+<rect x="48"  y="887" width="5"   height="130" rx="2.5" fill="#c084fc"/>
+<text x="68"  y="914" font-size="17" font-weight="700" fill="white" text-anchor="start">Model Training and</text>
+<text x="68"  y="935" font-size="17" font-weight="700" fill="white" text-anchor="start">Hyperparameter Optimisation</text>
+<text x="68"  y="958" font-size="14" fill="#94a3b8" text-anchor="start">XGBoost · Random Forest · LightGBM · MLP · Ridge LR</text>
+<text x="68"  y="978" font-size="13" fill="#64748b" text-anchor="start">Optuna TPE · 20 trials on 25% training subset</text>
+<text x="68"  y="997" font-size="13" fill="#4b5563" text-anchor="start">class-weighted losses · early stopping</text>
+
+<!-- arrow P4 box1→box2 -->
+<line x1="481" y1="952" x2="517" y2="952"
+      stroke="#c084fc" stroke-width="2" marker-end="url(#mPurple)"/>
+
+<!-- ── P4 Box 2: Performance Evaluation ─── x=520 w=430 -->
+<rect x="520" y="887" width="430" height="130" rx="11" fill="#0d1117"/>
+<rect x="520" y="887" width="5"   height="130" rx="2.5" fill="#c084fc"/>
+<text x="540" y="926" font-size="18" font-weight="600" fill="white" text-anchor="start">Performance Evaluation</text>
+<text x="540" y="952" font-size="14" fill="#94a3b8" text-anchor="start">AUC-ROC · AUC-PR · F1 at p̂ = 0.20 · Brier score</text>
+<text x="540" y="973" font-size="14" fill="#94a3b8" text-anchor="start">clinical threshold: recall = 93.8% at p̂ = 0.20</text>
+<text x="540" y="994" font-size="13" fill="#64748b" text-anchor="start">Wilcoxon signed-rank + Benjamini–Hochberg FDR</text>
+
+<!-- Connector Phase 4 → bottom pill -->
+<line x1="500" y1="1037" x2="500" y2="1060"
+      stroke="#818cf8" stroke-width="2.5" marker-end="url(#mConn)" filter="url(#connGlow)"/>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     BOTTOM PILL
+══════════════════════════════════════════════════════════════════════════ -->
+<rect x="210" y="1063" width="580" height="78" rx="39" fill="url(#pillBot)" filter="url(#pillShadow)"/>
+<text x="500" y="1108" font-size="22" font-weight="600" text-anchor="middle" fill="white">Surgical Plan Deviation Risk Score</text>
+
+</svg>
+</body>
+</html>

@@ -1,0 +1,168 @@
+%% ============================================================
+%% 00_main.tex  —  Elsevier elsarticle master file
+%% Pre-operative Prediction of Intraoperative Surgical Plan
+%% Deviation Using Retrieval-Augmented Learning on EHR
+%% ============================================================
+\documentclass[3p, authoryear]{elsarticle}
+
+%% ── Font encoding ───────────────────────────────────────────
+\usepackage{lmodern}
+\usepackage[T1]{fontenc}
+
+%% ── Core packages ───────────────────────────────────────────
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{subcaption}
+%% (tikz is not used — flowchart is SVG-based; do not add tikz back.)
+\usepackage{threeparttable}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{makecell}
+\usepackage{siunitx}
+\usepackage{rotating}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{soul}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage[protrusion=true,expansion=false]{microtype}
+
+%% ── Figure path ─────────────────────────────────────────────
+\graphicspath{{results/}}
+
+%% ── Hyperref settings ───────────────────────────────────────
+\hypersetup{
+  colorlinks = true,
+  linkcolor  = blue!70!black,
+  citecolor  = green!50!black,
+  urlcolor   = blue!70!black
+}
+
+%% ── Journal (fill before submission) ────────────────────────
+\journal{JOURNAL PLACEHOLDER}
+
+%% ============================================================
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Pre-operative Prediction of Intraoperative Surgical Plan Deviation
+       Using Retrieval-Augmented Learning on Electronic Health Records}
+
+%% ── Authors — fill real details before submission ────────────
+\author[inst1]{Mohammad Noorcheshm\corref{cor1}}
+\cortext[cor1]{Corresponding author}
+\ead{email@institution.edu}
+
+\address[inst1]{Department PLACEHOLDER, Faculty PLACEHOLDER,
+                University PLACEHOLDER, City, Country}
+
+%% ── Abstract ─────────────────────────────────────────────────
+\begin{abstract}
+%% Write abstract here in Step 8. One continuous paragraph, max 250 words.
+%% Structure: Background → Objective → Method → Results → Conclusion.
+%% No \cite{}, \ref{}, or undefined abbreviations.
+\textcolor{gray}{\textit{[Abstract will be written in Step 8.]}}
+\end{abstract}
+
+\begin{keyword}
+surgical procedure deviation \sep pre-operative prediction \sep
+retrieval-augmented learning \sep BERT embeddings \sep
+imbalanced classification \sep electronic health records
+\end{keyword}
+
+\end{frontmatter}
+
+%% ── Abbreviations ───────────────────────────────────────────
+%% Update whenever a new acronym is introduced anywhere in the paper.
+\section*{Abbreviations}
+\begin{description}
+    \item[ASA]          American Society of Anesthesiologists
+    \item[AUC-PR]       Area under the precision-recall curve
+    \item[AUC-ROC]      Area under the receiver operating characteristic curve
+    \item[BERT]         Bidirectional Encoder Representations from Transformers
+    \item[BMI]          Body mass index
+    \item[EHR]          Electronic health records
+    \item[FAISS]        Facebook AI Similarity Search
+    \item[FDR]          False discovery rate
+    \item[HPO]          Hyperparameter optimisation
+    \item[ICD-10]       International Classification of Diseases, 10th revision
+    \item[LightGBM]     Light Gradient Boosting Machine
+    \item[LR]           Logistic regression
+    \item[MLP]          Multilayer perceptron
+    \item[OR]           Operating room
+    \item[PCA]          Principal component analysis
+    \item[RAG]          Retrieval-augmented generation
+    \item[SentenceBERT] Sentence-level Bidirectional Encoder Representations from Transformers
+    \item[TPE]          Tree-structured Parzen Estimator
+    \item[XGBoost]      Extreme Gradient Boosting
+\end{description}
+
+%% ── 1. Introduction ─────────────────────────────────────────
+\section{Introduction}\label{sec:introduction}
+\input{overleaf/01_introduction}
+
+%% ── 2. Related Work ─────────────────────────────────────────
+\section{Related Work}\label{sec:related_work}
+\input{overleaf/02_related_works}
+
+%% ── 3. Methodology ──────────────────────────────────────────
+\section{Methodology}\label{sec:methodology}
+\input{overleaf/03_methodology}
+
+%% Flowchart referenced inside 03_methodology as Figure~\ref{fig:flowchart}
+\begin{figure*}[tp]
+  \centering
+  \input{flowchart/06_flowchart}
+  \caption{Overall workflow of the proposed methodology.}
+  \label{fig:flowchart}
+\end{figure*}
+
+%% ── 4. Results and Discussion ───────────────────────────────
+\section{Results and Discussion}\label{sec:results}
+\input{overleaf/04_results}
+
+%% ── 5. Conclusion ───────────────────────────────────────────
+%% Write conclusion inline here in Step 7. Four paragraphs:
+%% 1. Summary — restate problem + approach in 2–3 sentences. No numbers.
+%% 2. Contribution — key quantitative findings; what makes this work novel.
+%% 3. Limitations — dataset scope, generalisability, assumptions. No hedging.
+%% 4. Future work — 2–3 concrete directions tied to limitations or open questions.
+\section{Conclusion}\label{sec:conclusion}
+\textcolor{gray}{\textit{[Conclusion will be written in Step 7.]}}
+
+%% ── CRediT authorship contribution statement ─────────────────
+\section*{CRediT authorship contribution statement}
+\textbf{Mohammad Noorcheshm}: Conceptualization, Methodology, Data analysis
+and curation, Software, Writing: original draft and editing.
+
+%% ── Declaration of competing interest ───────────────────────
+\section*{Declaration of competing interest}
+The authors declare that they have no known competing financial interests or
+personal relationships that could have appeared to influence the work reported
+in this paper.
+
+%% ── Acknowledgement ─────────────────────────────────────────
+\section*{Acknowledgement}
+%% Fill in funding sources and acknowledgements before submission.
+
+%% ── Data availability ────────────────────────────────────────
+\section*{Data availability}
+%% Choose one option and remove the others before submission:
+%% Option A — data is open:
+%%   The data used in this study are publicly available at [repository/DOI].
+%% Option B — data is proprietary:
+%%   The data used in this study is proprietary and subject to confidentiality
+%%   agreements; therefore, it cannot be shared.
+%% Option C — data available on request:
+%%   The data that support the findings of this study are available from the
+%%   corresponding author upon reasonable request.
+
+%% ── Bibliography ────────────────────────────────────────────
+\bibliographystyle{elsarticle-harv}
+\bibliography{overleaf/references}
+
+\end{document}

@@ -1,0 +1,217 @@
+%% 05_methodology.tex — Section 3: Methodology
+%% Body-only file — no \documentclass, no \begin{document}.
+%% Included via \input{05_methodology} from overleaf/00_main.tex.
+%% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Methodology}
+\label{sec:methods}
+
+This study addresses the binary classification problem of predicting, prior to
+the patient entering the operating room, whether the performed surgical
+procedure will deviate from the pre-scheduled procedure.  The proposed pipeline
+integrates structured pre-operative features, contextual text representations
+derived from bidirectional encoder representations from transformers (BERT)
+language models, and a retrieval-augmented mechanism that exploits the
+historical deviation behaviour of semantically similar cases.  All feature transformations are estimated
+exclusively from training data within each cross-validation fold, thereby
+preventing any form of data leakage from validation to training partitions.
+The overall workflow is summarised in \cref{fig:flowchart}.
+
+%% ── 3.1 ──────────────────────────────────────────────────────────────────────
+\subsection{Data Cleaning and Label Derivation}
+\label{sec:cleaning}
+
+The raw dataset ($N = 194{,}661$ surgical cases) was filtered to retain only
+cases with a valid pre-operative scheduling timestamp.  All intraoperative
+columns (procedure duration, anaesthesia induction and emergence times,
+operative diagnosis, and the actually performed procedure) were excluded from
+every feature matrix to prevent leakage of intraoperative information into the
+pre-operative prediction task.
+
+The binary deviation label was derived as:
+\begin{equation}
+  y_i = \mathbf{1}\bigl[
+        p_i \neq s_i
+        \bigr]
+  \label{eq:label}
+\end{equation}
+where $p_i$ denotes the procedure actually performed for case $i$, $s_i$
+denotes the procedure scheduled pre-operatively, $y_i = 1$ indicates a
+deviation, and $y_i = 0$ indicates no deviation.  After cleaning,
+$N = 193{,}995$ cases remained, of which $13{,}134$ ($6.77\,\%$) carried a
+positive label, confirming a strongly imbalanced classification problem.
+
+%% ── 3.2 ──────────────────────────────────────────────────────────────────────
+\subsection{Structured Feature Engineering}
+\label{sec:struct}
+
+The structured pre-operative feature set encompasses four groups.  Demographic
+attributes include age at discharge, sex, and mean BMI; continuous variables
+were imputed with fold-wise training-set medians to avoid target leakage into
+validation partitions.  Clinical severity attributes comprise the ASA physical
+status score (ordinal, 1--5) and anaesthetic type, the latter encoded as a
+one-hot vector.  Scheduling context attributes include surgical service,
+operating room location, and OR trip sequence within the day, all one-hot
+encoded.  Temporal attributes include month of year, day of week, and scheduled
+start hour, retained as integer features; cyclic encoding was deemed
+unnecessary given the dominance of tree-based models.  First and last scheduled
+case of day flags, primary procedure status, and surgical encounter type were
+included as binary indicators.  Together, these fields yielded 55--56
+structured features depending on the fold-specific one-hot cardinality.
+
+%% ── 3.3 ──────────────────────────────────────────────────────────────────────
+\subsection{BERT Text Embeddings}
+\label{sec:bert}
+
+The scheduled procedure name constitutes the highest-information pre-operative
+field: certain procedure types (e.g., exploratory laparoscopy, punch biopsy,
+evaluation under anaesthesia) are systematically more likely to expand into a
+different definitive procedure than originally booked.  Two pre-trained
+transformer models were employed to represent each procedure name as a dense
+vector.
+
+ClinicalBERT (Bio-ClinicalBERT), a BERT-base model fine-tuned on MIMIC-III
+clinical notes \citep{alsentzer2019publicly}, generated 768-dimensional
+\texttt{[CLS]} token embeddings using a batch size of 32 and a maximum
+sequence length of 64 tokens.  SentenceBERT (all-MiniLM-L6-v2), a sentence transformer optimised for semantic
+similarity through contrastive training \citep{reimers2019sentence}, produced
+384-dimensional mean-pooled embeddings using a batch size of 64.  Both embedding
+matrices were pre-computed once and cached on disk.
+
+Within each fold, principal component analysis (PCA) was applied to the
+training-set embeddings to retain 128 principal components; the same projection
+was then applied to the validation set.  Let $\mathbf{E} \in
+\mathbb{R}^{n_{\mathrm{train}} \times d}$ denote the training embedding matrix
+and $\mathbf{W}_{\mathrm{PCA}} \in \mathbb{R}^{d \times 128}$ the projection
+derived from the training partition:
+\begin{equation}
+  \tilde{\mathbf{e}}_i = \mathbf{W}_{\mathrm{PCA}}^{\top} \mathbf{e}_i
+  \label{eq:pca}
+\end{equation}
+where $\mathbf{e}_i \in \mathbb{R}^{d}$ is the raw embedding of case $i$ and
+$\tilde{\mathbf{e}}_i \in \mathbb{R}^{128}$ is its projected representation.
+This step reduces dimensionality, accelerates downstream model training, and
+mitigates the curse of dimensionality.
+
+%% ── 3.4 ──────────────────────────────────────────────────────────────────────
+\subsection{ICD-10 Chapter Encoding}
+\label{sec:icd}
+
+The primary pre-operative diagnosis field records the diagnosis in a bracketed
+format (e.g., \texttt{(M19.9) arthrosis}).  The first
+alphabetic character of each code was extracted and mapped to an
+International Classification of Diseases, Tenth Revision (ICD-10) chapter
+integer in the range $[1, 22]$ via the standard letter-to-chapter
+correspondence (e.g., \texttt{A}/\texttt{B} $\to$ chapter~1, infectious
+diseases; \texttt{C}/\texttt{D} $\to$ chapters~2--3, neoplasms; \texttt{M}
+$\to$ chapter~13, musculoskeletal disorders).  Cases with an unrecognised or
+absent diagnosis code were assigned chapter~0.
+
+This single ordinal feature captures broad diagnostic complexity while avoiding
+the high cardinality of full-code one-hot encoding, which would exceed
+$10{,}000$ unique values in the present dataset and introduce severe
+dimensionality at no demonstrable benefit.
+
+%% ── 3.5 ──────────────────────────────────────────────────────────────────────
+\subsection{RAG Augmentation}
+\label{sec:rag}
+
+Motivated by retrieval-augmented generation (RAG) \citep{lewis2020retrieval},
+the feature vector of each case was enriched with scalar summaries of the
+historical deviation behaviour of semantically similar scheduled procedures.
+This augmentation provides the classifier with an explicit, data-driven prior
+before any model parameters are consulted.
+
+Within each fold, an exact inner-product Facebook AI Similarity Search (FAISS)
+index \citep{johnson2019billion} was constructed over the BERT embeddings of
+all training cases.  No validation-set embeddings were included in the
+index, preventing leakage.  For each case $i$, the $k = 5$ nearest neighbours
+$\mathcal{N}(i)$ were retrieved by cosine similarity in embedding space.
+
+Two scalar augmentation features were appended to the feature vector:
+\begin{align}
+  \phi_{\mathrm{nn}}(i)  &= \frac{1}{k}
+      \sum_{j \in \mathcal{N}(i)} y_j
+      \label{eq:phi_nn} \\[4pt]
+  \phi_{\mathrm{svc}}(i) &=
+      \frac{\displaystyle\sum_{j:\,\mathrm{svc}(j)=\mathrm{svc}(i)} y_j}
+           {\displaystyle\bigl|\{j : \mathrm{svc}(j) = \mathrm{svc}(i)\}\bigr|}
+      \label{eq:phi_svc}
+\end{align}
+where $\phi_{\mathrm{nn}}(i)$ is the mean deviation rate among the $k$ nearest
+training neighbours of case $i$, $\phi_{\mathrm{svc}}(i)$ is the historical
+deviation rate of the surgical service assigned to case $i$, $y_j \in \{0,1\}$
+is the deviation label of training case $j$, and $\mathrm{svc}(\cdot)$ denotes
+the surgical service.
+
+%% ── 3.6 ──────────────────────────────────────────────────────────────────────
+\subsection{Fold-wise Encoding and Scaling}
+\label{sec:folds}
+
+All feature construction operations, comprising PCA projection, FAISS index
+construction and retrieval, fold-wise imputation, and one-hot encoding, were
+performed within each fold's training partition.  The resulting transformation
+parameters were applied to the corresponding validation partition to preserve
+the integrity of the cross-validation protocol.
+
+Six evaluation folds were defined.  Five stratified folds (folds~0--4) each
+assigned $80\,\%$ of cases to training ($n \approx 155{,}196$) and $20\,\%$ to
+validation ($n \approx 38{,}799$), preserving the class ratio in both
+partitions.  A sixth temporal fold (fold~5) used the earliest $80\,\%$ of
+cases by scheduling date as the training set and the most recent $20\,\%$ as
+the test set; this fold evaluates generalisation to future surgical schedules.
+Five feature configurations were evaluated for each fold: structured features
+only, ClinicalBERT embeddings, SentenceBERT embeddings, RAG with ClinicalBERT,
+and RAG with SentenceBERT.  All features were normalised to $[0, 1]$ using
+min-max normalisation fitted on the training partition only.  Encoded feature matrices were serialised to a SQLite database
+for reproducible retrieval.
+
+%% ── 3.7 ──────────────────────────────────────────────────────────────────────
+\subsection{Model Training and Hyperparameter Optimisation}
+\label{sec:models}
+
+Five classifiers were trained and compared across all feature configurations
+and folds.  For each model, Optuna \citep{akiba2019optuna} with a
+Tree-structured Parzen Estimator (TPE) sampler and a median pruner was used
+to conduct 20 hyperparameter trials on a $25\,\%$ random subset of the
+training fold.  The best hyperparameters were then used to refit the model on
+the complete training partition.
+
+Ridge logistic regression employed an L2 penalty with the L-BFGS solver and
+balanced class weighting, with the regularisation strength
+$C \in [10^{-3}, 10]$ as the sole tuned parameter.  Random Forest used
+balanced class weighting; the number of estimators, maximum tree depth,
+maximum features, and minimum samples per split and per leaf were tuned.
+XGBoost was executed with GPU acceleration and a fold-dynamic class imbalance
+weight $w = n_{-}/n_{+}$, where $n_{-}$ and $n_{+}$ are the counts of
+negative and positive training cases respectively; the learning rate, tree
+depth, subsampling ratio, column subsampling ratio, and L1/L2 regularisation
+terms were tuned.  LightGBM used automatic imbalance correction with early
+stopping after 20 rounds of no validation improvement, with analogous
+hyperparameters tuned.  The multilayer perceptron (MLP) used the
+AdamW optimiser, batch normalisation and dropout after each hidden layer, and a
+class-weighted binary cross-entropy loss; the number of hidden layers (1--3),
+units per layer, dropout rates, learning rate, and weight decay were tuned,
+with training limited to 200 epochs and early stopping with patience 30 on
+validation AUC-ROC.
+
+%% ── 3.8 ──────────────────────────────────────────────────────────────────────
+\subsection{Performance Evaluation}
+\label{sec:eval}
+
+Model performance was assessed using four metrics suited to the strongly
+imbalanced class distribution.  The area under the receiver operating
+characteristic curve (AUC-ROC) served as the primary threshold-independent
+discrimination metric.  The area under the precision-recall curve (AUC-PR),
+equivalent to average precision, is more informative than AUC-ROC for
+imbalanced problems; a random classifier achieves AUC-PR $\approx 0.068$ on
+this dataset.  The F1 score, precision, and recall were computed at a
+clinically motivated decision threshold of $\hat{p} = 0.20$, above which a
+case is flagged for pre-operative review.  The Brier score was computed to
+quantify probability calibration quality.
+
+At the clinical threshold $\hat{p} = 0.20$, a flagged case triggers a set of
+pre-operative actions: surgeon briefing, equipment pre-check, extended operating
+room block allocation, and anaesthesia team notification.  Performance metrics
+are reported as mean $\pm$ standard deviation across folds~0--4, with fold~5
+reported separately to assess out-of-time generalisation.
